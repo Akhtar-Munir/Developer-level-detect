@@ -1,0 +1,138 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar 28 08:49:45 2018
+
+@author: Silent Hacker
+"""
+
+import numpy as np
+seed = np.random.seed(1337)  # for reproducibility
+
+from keras.preprocessing import sequence
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation
+from keras.layers import Embedding
+from keras.layers import Conv1D, GlobalMaxPooling1D
+from matplotlib import pyplot as plt
+from IPython.display import clear_output
+import numpy as np
+
+import json
+
+classes = 2
+maxlen = 250  # cut texts after this number of words (among top max_features most common words)
+batch_size = 128
+embeding_size = 128
+filters = 250
+epochs = 10
+max_features = 248920
+
+print('Loading data...')
+#Expected_class = np.load("E:/indices_y_train.npy")
+X_train = np.load("F:/x_train.npy")
+y_train = np.load("F:/y_train.npy")
+X_test = np.load("F:/x_test.npy")
+Y_test = np.load("F:/y_test.npy")
+print(len(X_train), 'train sequences')
+
+print("Pad sequences (samples x time)")
+X_train = sequence.pad_sequences(X_train, maxlen=maxlen)
+X_test = sequence.pad_sequences(X_test, maxlen=maxlen)
+#print(X_train)
+print('X_test shape:', X_test.shape)
+print('X_train shape:', X_train.shape)
+print("training started!!")
+
+#####################################################Nural Network Model#############################################
+model = Sequential()
+
+model.add(Embedding(max_features, embeding_size, input_length=maxlen))
+model.add(Dropout(0.6,seed=seed))
+model.add(
+    Conv1D(
+        activation='relu',
+        filters = filters,
+        kernel_size=2,
+        strides=1,
+        padding="valid"
+    )
+)
+    
+model.add(GlobalMaxPooling1D())
+
+model.add(Dense(128))
+model.add(Activation('relu'))
+
+model.add(Dense(2))
+model.add(Activation('sigmoid'))
+
+#####################################################Nural Network Model#############################################
+# try using different optimizers and different optimizer configs
+model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
+#print(model.summary())
+# Model saving callback
+#checkpointer = ModelCheckpoint(filepath="model.json", monitor='val_acc', verbose=1, save_best_only=True)
+# train
+history=model.fit(X_train, y_train,
+          validation_split=0.2,
+          epochs=epochs, verbose=1)
+
+
+scores = model.evaluate(X_train, y_train)
+rslt1 = model.metrics_names[1], scores[1]*100
+print("\ntrain-%s: %.2f%%" % (rslt1))
+score = model.evaluate(X_test, Y_test,verbose=0)
+#rslt2 = model.metrics_names[1], scores[1]*100
+print('Test loss:', score[0])
+print('Test accuracy:', score[1]*100," %")
+#######################################################plot all graphs#######################
+#  "Accuracy"
+acc = history.history['acc']
+val_acc = history.history['val_acc']
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
+# "Loss"
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
+
+
+
+
+
+pred = model.predict(X_train)
+predict_classes=np.argmax(pred,axis=1)
+#print("predict output: ",pred)
+#print("Predicted classes: {} ",predict_classes)
+#print("Expected classes: {} ",predict_classes)
+
+def runit(model, inp):
+    inp = np.array(inp,dtype=np.float32)
+    pred = model.predict(inp)
+    return np.argmax(pred[0])
+
+val = runit(model,[X_train[2]])
+print("predicted value: ",val)
+if val == 1:
+    print("is expert developer!!!")
+else:
+    print("is novice developer!!!")
+
+#Saving model    
+#model_json = model.to_json()
+#with open("model.json", "w") as json_file:
+#    json_file.write(model_json)
+## serialize weights to HDF5
+#model.save_weights("model.h5")
+#print("Saved model to disk")
